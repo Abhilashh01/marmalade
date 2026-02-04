@@ -55,6 +55,10 @@ This builds the frontend and serves it from the backend when `NODE_ENV=productio
 2. Start server
    - `npm start`
 
+## Deployment
+- Container Apps (Azure): `docs/CONTAINER-APPS.md`
+- DevOps and Cloud: `docs/DEVOPS.md`
+
 ## What you need to run this project
 - A MongoDB connection string in `MONGO_URI`
 - Stream Chat + Stream Video credentials:
