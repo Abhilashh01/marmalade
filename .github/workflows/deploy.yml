@@ -1,0 +1,93 @@
+# name: Deploy Streamify to Render
+
+# on:
+#   push:
+#     branches:
+#       - main  # deploys when you push to main
+
+# jobs:
+#   build-and-deploy:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       # 1️⃣ Checkout your code
+#       - name: Checkout code
+#         uses: actions/checkout@v3
+
+#       # 2️⃣ Setup Node 24
+#       - name: Setup Node.js
+#         uses: actions/setup-node@v3
+#         with:
+#           node-version: '24'
+
+#       # 3️⃣ Install dependencies & build project
+#       - name: Build backend + frontend
+#         run: npm run build
+
+#       # 4️⃣ Deploy to Render
+#       - name: Deploy to Render
+#         env:
+#           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+#           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+#         run: |
+#           curl -X POST "https://api.render.com/deploy/srv-${RENDER_SERVICE_ID}" \
+#           -H "Authorization: Bearer $RENDER_API_KEY"
+
+
+
+name: Deploy Marmalade to Azure App Service
+
+on:
+  push:
+    branches:
+      - main  # Deploy only when code is pushed to main branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2️⃣ Setup Node.js environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      # 3️⃣ Install frontend dependencies
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+
+      # 4️⃣ Build frontend
+      - name: Build frontend
+        run: npm run build --prefix frontend
+        env: 
+          VITE_STREAM_API_KEY: ${{ secrets.VITE_STREAM_API_KEY }}
+
+      # 5️⃣ Install backend dependencies
+      - name: Install backend dependencies
+        run: npm ci --prefix backend
+
+      # 6️⃣ Copy frontend build into backend for deployment
+      - name: Move frontend build to backend
+        run: |
+          rm -rf backend/frontend
+          mkdir -p backend/frontend/dist
+          cp -r frontend/dist/* backend/frontend/dist/
+
+      # 7️⃣ Zip backend for deployment
+      - name: Prepare deployment package
+        run: |
+          cd backend
+          zip -r ../marmalade.zip .
+
+      # 8️⃣ Deploy to Azure Web App using publish profile
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: 'marmalade'  # must match your Azure App Service name
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: 'marmalade.zip'
