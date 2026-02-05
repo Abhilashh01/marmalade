@@ -76,8 +76,10 @@ flowchart TB
   R3 --> CC["Chat Controller"]
 
   AC -->|Signup/Login/Onboard| UDB["User Model (Mongoose)"]
-  UC -->|Friend Requests| FRDB["FriendRequest Model (Mongoose)"]
-  UC -->|Friends + Recommendations| UDB
+  UC --> FRQ["Friend Requests\n(create/accept/list)"]
+  UC --> FRI["Friends + Recommendations\n(list, suggest)"]
+  FRQ --> FRDB["FriendRequest Model (Mongoose)"]
+  FRI --> UDB
   CC -->|Stream Token| ST["Stream Client (SDK)"]
 
   UDB --> MONGO["MongoDB (Atlas or Self-hosted)"]
