@@ -59,6 +59,53 @@ This builds the frontend and serves it from the backend when `NODE_ENV=productio
 - Container Apps (Azure): `docs/CONTAINER-APPS.md`
 - DevOps and Cloud: `docs/DEVOPS.md`
 
+## Architecture
+```mermaid
+flowchart TB
+  A["Web Client (React SPA)"] -->|HTTPS| B["Backend (Express API)"]
+
+  B --> C["Middleware: CORS + JSON + Cookie Parser"]
+  C --> D["Auth Middleware (JWT cookie → req.user)"]
+
+  D --> R1["/api/auth"]
+  D --> R2["/api/users"]
+  D --> R3["/api/chat"]
+
+  R1 --> AC["Auth Controller"]
+  R2 --> UC["User Controller"]
+  R3 --> CC["Chat Controller"]
+
+  AC -->|Signup/Login/Onboard| UDB["User Model (Mongoose)"]
+  UC -->|Friend Requests| FRDB["FriendRequest Model (Mongoose)"]
+  UC -->|Friends + Recommendations| UDB
+  CC -->|Stream Token| ST["Stream Client (SDK)"]
+
+  UDB --> MONGO["MongoDB (Atlas or Self-hosted)"]
+  FRDB --> MONGO
+  ST --> STREAM["Stream Chat + Stream Video (SaaS)"]
+
+  subgraph DEPLOY["Deployment Options"]
+    S1["Azure App Service (Single Artifact)\nBackend serves built frontend"]
+    S2["Azure Container Apps (Two Containers)\nFrontend + Backend"]
+  end
+
+  B -.-> S1
+  B -.-> S2
+
+  subgraph CICD["CI/CD"]
+    G["GitHub Actions\nBuild + Deploy"]
+  end
+
+  G --> S1
+  G --> S2
+
+  subgraph SECRETS["Secrets / Config (env vars)"]
+    K["Examples: DB URI, JWT secret, Stream API keys"]
+  end
+
+  K --> B
+```
+
 ## What you need to run this project
 - A MongoDB connection string in `MONGO_URI`
 - Stream Chat + Stream Video credentials:
