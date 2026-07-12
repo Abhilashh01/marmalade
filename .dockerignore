@@ -1,0 +1,12 @@
+**/.env
+**/.env.*
+**/node_modules
+**/dist
+**/coverage
+**/.DS_Store
+.git
+.github
+docs
+infra
+notes.md
+npm-debug.log*

@@ -1,44 +1,78 @@
 # DevOps and Cloud Notes
 
-This document highlights the infrastructure, deployment, and operational work for Marmalade. The frontend is treated as a static build artifact; the focus here is backend, cloud, and DevOps.
+Marmalade targets Azure Container Apps for production v1.
 
-## Overview
-- Backend: Node.js/Express API with MongoDB and JWT auth
-- Realtime: Stream Chat + Stream Video
-- Deployment target(s): Azure App Service and Azure Container Apps
+## Deployment Model
+
+- Frontend: public Container App serving a Vite build through nginx.
+- Backend: internal Container App running the Express API.
+- API routing: nginx proxies frontend `/api/*` requests to the internal backend.
+- Revision mode: single revision for both apps.
+- Environment: one production environment for v1.
+
+This replaces the previous single-artifact App Service deployment path.
 
 ## Infrastructure
-- MongoDB: Atlas or self-hosted
-- Secrets: GitHub Actions secrets and app environment variables
-- Environments: Development and Production
+
+Infrastructure is defined in Bicep:
+
+- `infra/registry.bicep` creates Azure Container Registry.
+- `infra/main.bicep` creates Log Analytics, Container Apps Environment, managed identities, ACR pull role assignments, and both Container Apps.
+
+The backend stores sensitive values as Container App secrets:
+
+- `MONGO_URI`
+- `JWT_SECRET_KEY`
+- `STREAM_API_KEY`
+- `STREAM_API_SECRET`
+
+The frontend requires `VITE_STREAM_API_KEY` at image build time.
 
 ## CI/CD
-- GitHub Actions workflow builds the frontend and packages the backend for deployment
-- Deployment via Azure Web Apps publish profile
-- Optional path: Azure login with service principal (more secure, fine-grained access)
 
-## Azure App Service Deployment
-- Backend serves the built frontend in production
-- Deployment artifact: `marmalade.zip`
-- Environment variables provided via App Service configuration
+GitHub Actions workflow:
 
-## Azure Container Apps Deployment (Two Containers)
-- Frontend container: serves built React app
-- Backend container: Express API
-- Communication: `VITE_API_BASE_URL` -> backend ingress URL
-- CORS: backend allows frontend origin
-- Documented in: `docs/CONTAINER-APPS.md`
+```txt
+.github/workflows/azure-container-apps.yml
+```
 
-## Observability and Ops (Planned/Optional)
-- Health checks for API readiness/liveness
-- Log streaming from Azure
-- Basic alerting for downtime (optional)
+Jobs:
 
-## Security Considerations
-- Secrets stored in GitHub Actions and Azure App Service configuration
-- JWT secret required for auth
-- Least-privilege service principal recommended for production-grade setups
+- `ci`: dependency install, frontend lint, frontend build, backend dependency install.
+- `cd`: Azure login, ACR provisioning, Docker build/push for both images, Bicep deployment to ACA.
 
-## Cost and Lifecycle
-- App Service is used for the always-on demo
-- Container Apps are used for documented, on-demand demos and can be stopped to reduce cost
+Required GitHub secrets:
+
+```txt
+AZURE_CLIENT_ID
+AZURE_TENANT_ID
+AZURE_SUBSCRIPTION_ID
+MONGO_URI
+JWT_SECRET_KEY
+STREAM_API_KEY
+STREAM_API_SECRET
+VITE_STREAM_API_KEY
+```
+
+## Local Workflows
+
+Development stays npm-first:
+
+```sh
+npm run dev --prefix backend
+npm run dev --prefix frontend
+```
+
+Full local container verification:
+
+```sh
+docker compose up --build
+```
+
+## Security Notes
+
+- Backend Container App ingress is internal only.
+- Frontend Container App is the only public ingress point.
+- ACR admin user is disabled.
+- Container Apps pull images using user-assigned managed identities with `AcrPull`.
+- GitHub Actions uses Azure OIDC login instead of publish profiles.

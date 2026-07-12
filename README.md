@@ -46,14 +46,19 @@ A full-stack language-exchange app where learners can discover partners, send fr
 
 The backend runs on `http://localhost:5001`, and the frontend proxies requests to it.
 
-## Production build (single server)
-This builds the frontend and serves it from the backend when `NODE_ENV=production`.
+## Production containers
+Production v1 uses two containers on Azure Container Apps:
 
-1. Build
-   - `npm run build`
+- Frontend: public nginx container serving the Vite build and proxying `/api` to the backend.
+- Backend: private/internal Express API container.
 
-2. Start server
-   - `npm start`
+For full local container verification:
+
+```
+docker compose up --build
+```
+
+Then open `http://localhost:8080`.
 
 ## Deployment
 - Container Apps (Azure): `docs/CONTAINER-APPS.md`
@@ -62,7 +67,8 @@ This builds the frontend and serves it from the backend when `NODE_ENV=productio
 ## Architecture
 ```mermaid
 flowchart TB
-  A["Web Client (React SPA)"] -->|HTTPS| B["Backend (Express API)"]
+  A["Web Client (React SPA)"] -->|HTTPS| F["Frontend Container (nginx)"]
+  F -->|/api proxy| B["Backend Container (Express API)"]
 
   B --> C["Middleware: CORS + JSON + Cookie Parser"]
   C --> D["Auth Middleware (JWT cookie → req.user)"]
@@ -87,18 +93,15 @@ flowchart TB
   ST --> STREAM["Stream Chat + Stream Video (SaaS)"]
 
   subgraph DEPLOY["Deployment Options"]
-    S1["Azure App Service (Single Artifact)\nBackend serves built frontend"]
-    S2["Azure Container Apps (Two Containers)\nFrontend + Backend"]
+    S2["Azure Container Apps\nPublic Frontend + Internal Backend"]
   end
 
-  B -.-> S1
   B -.-> S2
 
   subgraph CICD["CI/CD"]
     G["GitHub Actions\nBuild + Deploy"]
   end
 
-  G --> S1
   G --> S2
 
   subgraph SECRETS["Secrets / Config (env vars)"]
@@ -118,4 +121,4 @@ flowchart TB
 
 ## Notes
 - CORS is set to allow `http://localhost:5173` in development.
-- In production, the backend serves the built frontend from `frontend/dist`.
+- In production, nginx serves the built frontend and proxies `/api` to the internal backend.
